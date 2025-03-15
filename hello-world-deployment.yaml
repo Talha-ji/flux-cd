@@ -17,6 +17,6 @@ spec:
       - name: hello-world
         image: hashicorp/http-echo
         args:
-          - "-text= project completed !!!!!  "
+          - "-text= project done  "
         ports:
           - containerPort: 5678
