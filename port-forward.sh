@@ -1,5 +1,9 @@
-#!/bin/bash
+NU nano 7.2                                             port-forward.sh                                                      #!/bin/bash
 set -e
+
+# Wait for 1 minute after deployment changes
+echo "Waiting for 1 minute to allow the deployment to stabilize..."
+sleep 60
 
 while true; do
   # Get the name of the latest hello-world pod
@@ -8,15 +12,15 @@ while true; do
   # Check if the pod exists
   if [ -z "$POD_NAME" ]; then
     echo "No hello-world pod found. Retrying in 5 seconds..."
-    sleep 10
+    sleep 5  # Wait for 5 seconds before retrying
     continue
   fi
 
   # Start port-forwarding
-  echo "Starting port-forward for pod: $POD_NAME"
+  echo "Found pod: $POD_NAME. Starting port-forward..."
   kubectl port-forward svc/hello-world 3000:5678 --address 0.0.0.0
 
-  # If port-forwarding fails, wait for a few seconds and retry
+  # If port-forwarding fails, wait for 5 seconds and retry
   echo "Port-forwarding failed. Retrying in 5 seconds..."
-  sleep 5
+  sleep 5  # Wait for 5 seconds before retrying
 done
