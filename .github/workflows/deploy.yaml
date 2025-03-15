@@ -27,11 +27,14 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      # Step 4: Create a deploy script
-      - name: Create deploy script
+      # Step 4: Deploy to the server
+      - name: Deploy to server
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          TOKEN: ${{ secrets.EC2_TOKEN }}
         run: |
-          cat << 'EOF' > deploy.sh
-          #!/bin/bash
+          ssh ${SSH_USER}@${SSH_HOST} << 'EOF'
           set -e
 
           # Navigate to the project directory
@@ -55,33 +58,46 @@ jobs:
           ls -la
           EOF
 
-      # Step 5: Deploy to the server
-      - name: Deploy to server
-        env:
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          TOKEN: ${{ secrets.EC2_TOKEN }}
-        run: |
-          # Make the deploy script executable
-          chmod +x deploy.sh
-
-          # Copy the deploy script to the server
-          scp deploy.sh ${SSH_USER}@${SSH_HOST}:/tmp/deploy.sh
-
-          # Execute the deploy script with sudo and pass environment variables
-          ssh ${SSH_USER}@${SSH_HOST} "sudo -E bash -c 'TOKEN=\"$TOKEN\" bash /tmp/deploy.sh'"
-
-          # Start the port-forward script in the background
-          ssh ${SSH_USER}@${SSH_HOST} "nohup bash /home/ubuntu/port-forward.sh > /dev/null 2>&1 &"
-
-          # Cleanup
-          ssh ${SSH_USER}@${SSH_HOST} "rm /tmp/deploy.sh"
-          rm deploy.sh
-
-      # Step 6: Verify deployment
-      - name: Verify deployment
+      # Step 5: Start port-forwarding
+      - name: Start port-forwarding
         env:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
         run: |
-          ssh ${SSH_USER}@${SSH_HOST} "ls -la /home/ubuntu"
+          ssh ${SSH_USER}@${SSH_HOST} << 'EOF'
+          set -e
+
+          LOG_FILE="/home/ubuntu/port-forward.log"
+
+          # Wait for 1 minute after deployment changes
+          echo "[$(date)] Waiting for 1 minute to allow the deployment to stabilize..." | tee -a $LOG_FILE
+          sleep 60
+
+          while true; do
+            # Get the name of the latest hello-world pod
+            POD_NAME=$(kubectl get pods -l app=hello-world -o jsonpath="{.items[0].metadata.name}" 2>/dev/null)
+
+            # Check if the pod exists
+            if [ -z "$POD_NAME" ]; then
+              echo "[$(date)] No hello-world pod found. Retrying in 5 seconds..." | tee -a $LOG_FILE
+              sleep 5  # Wait for 5 seconds before retrying
+              continue
+            fi
+
+            # Start port-forwarding
+            echo "[$(date)] Found pod: $POD_NAME. Starting port-forward..." | tee -a $LOG_FILE
+            kubectl port-forward svc/hello-world 3000:5678 --address 0.0.0.0 >> $LOG_FILE 2>&1
+
+            # If port-forwarding fails, wait for 5 seconds and retry
+            echo "[$(date)] Port-forwarding failed. Retrying in 5 seconds..." | tee -a $LOG_FILE
+            sleep 5  # Wait for 5 seconds before retrying
+          done
+          EOF
+
+      # Step 6: Monitor port-forwarding logs
+      - name: Monitor port-forwarding logs
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          ssh ${SSH_USER}@${SSH_HOST} "tail -f /home/ubuntu/port-forward.log"
