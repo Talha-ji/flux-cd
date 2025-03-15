@@ -53,29 +53,32 @@ jobs:
 
           # List directory contents to verify
           ls -la
-
-          # Start kubectl port-forward in the background
-          kubectl port-forward svc/hello-world 3000:5678 --address 0.0.0.0 &
           EOF
 
-      # Step 5: Deploy to the server
-      - name: Deploy to server
+      # Step 5: Copy and run the port-forward script
+      - name: Copy and run port-forward script
         env:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
           TOKEN: ${{ secrets.EC2_TOKEN }}
         run: |
-          # Make the script executable
+          # Make the deploy script executable
           chmod +x deploy.sh
 
-          # Copy the script to the server
+          # Copy the deploy script to the server
           scp deploy.sh ${SSH_USER}@${SSH_HOST}:/tmp/deploy.sh
 
-          # Execute the script with sudo and pass environment variables
+          # Execute the deploy script with sudo and pass environment variables
           ssh ${SSH_USER}@${SSH_HOST} "sudo -E bash -c 'TOKEN=\"$TOKEN\" bash /tmp/deploy.sh'"
 
+          # Copy the port-forward script to the server
+          scp /home/ubuntu/port-forward.sh ${SSH_USER}@${SSH_HOST}:/tmp/port-forward.sh
+
+          # Start the port-forward script in the background
+          ssh ${SSH_USER}@${SSH_HOST} "nohup bash /tmp/port-forward.sh > /dev/null 2>&1 &"
+
           # Cleanup
-          ssh ${SSH_USER}@${SSH_HOST} "rm /tmp/deploy.sh"
+          ssh ${SSH_USER}@${SSH_HOST} "rm /tmp/deploy.sh /tmp/port-forward.sh"
           rm deploy.sh
 
       # Step 6: Verify deployment
