@@ -3,7 +3,14 @@ set -e
 
 while true; do
   # Get the name of the latest hello-world pod
-  POD_NAME=$(kubectl get pods -l app=hello-world -o jsonpath="{.items[0].metadata.name}")
+  POD_NAME=$(kubectl get pods -l app=hello-world -o jsonpath="{.items[0].metadata.name}" 2>/dev/null)
+
+  # Check if the pod exists
+  if [ -z "$POD_NAME" ]; then
+    echo "No hello-world pod found. Retrying in 5 seconds..."
+    sleep 10
+    continue
+  fi
 
   # Start port-forwarding
   echo "Starting port-forward for pod: $POD_NAME"
