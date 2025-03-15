@@ -55,8 +55,8 @@ jobs:
           ls -la
           EOF
 
-      # Step 5: Copy and run the port-forward script
-      - name: Copy and run port-forward script
+      # Step 5: Deploy to the server
+      - name: Deploy to server
         env:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -71,14 +71,11 @@ jobs:
           # Execute the deploy script with sudo and pass environment variables
           ssh ${SSH_USER}@${SSH_HOST} "sudo -E bash -c 'TOKEN=\"$TOKEN\" bash /tmp/deploy.sh'"
 
-          # Copy the port-forward script to the server
-          scp /home/ubuntu/port-forward.sh ${SSH_USER}@${SSH_HOST}:/tmp/port-forward.sh
-
           # Start the port-forward script in the background
-          ssh ${SSH_USER}@${SSH_HOST} "nohup bash /tmp/port-forward.sh > /dev/null 2>&1 &"
+          ssh ${SSH_USER}@${SSH_HOST} "nohup bash /home/ubuntu/port-forward.sh > /dev/null 2>&1 &"
 
           # Cleanup
-          ssh ${SSH_USER}@${SSH_HOST} "rm /tmp/deploy.sh /tmp/port-forward.sh"
+          ssh ${SSH_USER}@${SSH_HOST} "rm /tmp/deploy.sh"
           rm deploy.sh
 
       # Step 6: Verify deployment
