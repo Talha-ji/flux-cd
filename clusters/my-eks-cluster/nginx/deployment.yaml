@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: nginx
 spec:
-  replicas: 1  # Only one pod
+  replicas: 2  # Only one pod
   selector:
     matchLabels:
       app: nginx
