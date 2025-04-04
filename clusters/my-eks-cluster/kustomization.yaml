@@ -2,5 +2,18 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
 - ./nginx/deployment.yaml
-namespace: default  # <-- Ensures all resources go to "default" namespace
 - ./nginx/service.yaml
+namespace: default
+# Add this section:
+apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
+kind: Kustomization
+metadata:
+  name: flux-system
+  namespace: flux-system
+spec:
+  interval: 2m0s  # Changed from 5m to 2m
+  path: ./clusters/my-eks-cluster
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
